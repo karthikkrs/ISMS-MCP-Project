@@ -94,6 +94,49 @@ def create_users(db):
         db.commit()
         print("Auditor user created successfully")
 
+def create_assets(db):
+    """Create sample assets for testing."""
+    # Check if assets exist
+    existing_assets = db.query(Asset).all()
+    if existing_assets:
+        print("Assets already exist")
+        return
+    
+    # Get admin user
+    admin_user = db.query(User).filter(User.username == "admin").first()
+    
+    # Create assets
+    assets = [
+        Asset(
+            asset_name="Production Server",
+            asset_type=AssetTypeEnum.HARDWARE,
+            description="Main production server hosting critical applications",
+            owner_id=admin_user.user_id
+        ),
+        Asset(
+            asset_name="Customer Database",
+            asset_type=AssetTypeEnum.DATA,
+            description="Database containing customer information",
+            owner_id=admin_user.user_id
+        ),
+        Asset(
+            asset_name="Corporate Network",
+            asset_type=AssetTypeEnum.NETWORK,
+            description="Corporate network infrastructure",
+            owner_id=admin_user.user_id
+        ),
+        Asset(
+            asset_name="CRM System",
+            asset_type=AssetTypeEnum.SOFTWARE,
+            description="Customer Relationship Management system",
+            owner_id=admin_user.user_id
+        )
+    ]
+    
+    db.add_all(assets)
+    db.commit()
+    print("Assets created successfully")
+
 def main():
     """Initialize the database."""
     try:
@@ -108,6 +151,9 @@ def main():
         
         # Create users
         create_users(db)
+        
+        # Create assets
+        create_assets(db)
         
         print("Database initialization completed successfully")
     except Exception as e:
