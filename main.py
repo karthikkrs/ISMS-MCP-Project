@@ -1,27 +1,29 @@
 """
-Main application entry point for the ISMS API.
+Main entry point for the ISMS (Information Security Management System) application.
 
-This module initializes the FastAPI application, includes routers,
-and configures middleware, authentication, and documentation.
+This module initializes the FastAPI application, sets up database connections,
+includes routers, and configures middleware for authentication and CORS.
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from typing import List, Optional
 import os
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Import routers
+from routers import user, asset, risk, policy, incident
+
 # Create FastAPI app
 app = FastAPI(
-    title="Information Security Management System API",
-    description="API for managing information security assets, risks, policies, and incidents",
-    version="1.0.0",
+    title="ISMS API",
+    description="Information Security Management System API",
+    version="1.0.0"
 )
 
 # Configure CORS
@@ -33,38 +35,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Root endpoint
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/isms")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Dependency to get DB session
+def get_db():
+    """
+    Dependency function to get a database session.
+    
+    Yields:
+        SQLAlchemy session: A database session
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Include routers
+app.include_router(user.router, prefix="/api/users", tags=["users"])
+app.include_router(asset.router, prefix="/api/assets", tags=["assets"])
+app.include_router(risk.router, prefix="/api/risks", tags=["risks"])
+app.include_router(policy.router, prefix="/api/policies", tags=["policies"])
+app.include_router(incident.router, prefix="/api/incidents", tags=["incidents"])
+
 @app.get("/")
 async def root():
-    """Root endpoint returning API information."""
-    return {
-        "message": "ISMS API is running",
-        "documentation": "/docs",
-        "version": "1.0.0"
-    }
+    """
+    Root endpoint to verify API is running.
+    
+    Returns:
+        dict: A simple message indicating the API is running
+    """
+    return {"message": "ISMS API is running"}
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat()
-    }
-
-# Import and include routers
-# Note: These will be implemented in separate files
-# from routers import users, assets, risks, policies, incidents
-# 
-# app.include_router(users.router, prefix="/api/users", tags=["Users"])
-# app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
-# app.include_router(risks.router, prefix="/api/risks", tags=["Risks"])
-# app.include_router(policies.router, prefix="/api/policies", tags=["Policies"])
-# app.include_router(incidents.router, prefix="/api/incidents", tags=["Incidents"])
-
-# Run the application
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
-    uvicorn.run("main:app", host=host, port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
